@@ -46,6 +46,44 @@ try {
   console.log('Manufacturing orders routes loaded');
   app.use('/api/work-orders', require('./src/api/workOrders'));
   console.log('Work orders routes loaded');
+  const bomRoutes = require('./src/api/billsOfMaterial');
+  app.use('/api/bills-of-material', bomRoutes);
+  console.log('Bills of material routes loaded successfully');
+  
+  // Direct BOM creation endpoint for testing
+  app.post('/api/create-bom', async (req, res) => {
+    try {
+      console.log('Direct BOM creation:', req.body);
+      const BillOfMaterial = require('./src/models/BillOfMaterial');
+      
+      const { product, version, status, components, operations } = req.body;
+      
+      const bomCount = await BillOfMaterial.countDocuments();
+      const bomNumber = `BOM-${new Date().getFullYear()}-${String(bomCount + 1).padStart(3, '0')}`;
+      const totalCost = components.reduce((sum, comp) => sum + (comp.quantity * 10), 0);
+
+      const bom = new BillOfMaterial({
+        bomNumber,
+        product,
+        version: version || '1.0',
+        status: status || 'draft',
+        components,
+        operations,
+        totalCost
+      });
+
+      await bom.save();
+      console.log('BOM saved:', bom._id);
+      res.status(201).json(bom);
+    } catch (error) {
+      console.error('Direct BOM creation error:', error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  app.use('/api/stock-ledger', require('./src/api/stockLedger'));
+  console.log('Stock ledger routes loaded');
+  app.use('/api/qr-codes', require('./src/api/qrCodes'));
+  console.log('QR codes routes loaded');
   app.use('/api/products', require('./src/api/products'));
   console.log('Products routes loaded');
   app.use('/api/work-centers', require('./src/api/workCenters'));
