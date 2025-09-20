@@ -1,1 +1,0 @@
-// Functions to call the backend REST API
