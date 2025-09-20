@@ -7,6 +7,11 @@ const connectDB = require('./src/config/database');
 const handleSocketConnection = require('./src/websockets/socketHandler');
 
 console.log('Starting server...');
+console.log('Environment check:', {
+  NODE_ENV: process.env.NODE_ENV,
+  PORT: process.env.PORT,
+  MONGODB_URI: process.env.MONGODB_URI ? 'Loaded' : 'Missing'
+});
 
 const app = express();
 const server = http.createServer(app);
