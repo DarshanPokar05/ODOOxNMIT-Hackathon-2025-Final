@@ -63,6 +63,51 @@ const ProductMaster: React.FC = () => {
       setProducts(data);
     } catch (error) {
       console.error('Error loading products:', error);
+      // Mock data for demo
+      setProducts([
+        {
+          _id: '1',
+          code: 'PROD-001',
+          name: 'Office Chair',
+          description: 'Ergonomic office chair with lumbar support',
+          unit: 'pieces',
+          type: 'finished',
+          costPrice: 150.00,
+          sellingPrice: 250.00,
+          stockQuantity: 45,
+          minStockLevel: 10,
+          isActive: true,
+          createdAt: new Date().toISOString()
+        },
+        {
+          _id: '2',
+          code: 'RAW-001',
+          name: 'Steel Frame',
+          description: 'High-grade steel frame for furniture',
+          unit: 'kg',
+          type: 'raw_material',
+          costPrice: 25.50,
+          sellingPrice: 0,
+          stockQuantity: 5,
+          minStockLevel: 20,
+          isActive: true,
+          createdAt: new Date().toISOString()
+        },
+        {
+          _id: '3',
+          code: 'COMP-001',
+          name: 'Desk Surface',
+          description: 'Wooden desk surface component',
+          unit: 'pieces',
+          type: 'component',
+          costPrice: 75.00,
+          sellingPrice: 0,
+          stockQuantity: 30,
+          minStockLevel: 15,
+          isActive: true,
+          createdAt: new Date().toISOString()
+        }
+      ]);
     }
   };
 

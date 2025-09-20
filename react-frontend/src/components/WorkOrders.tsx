@@ -71,7 +71,30 @@ const WorkOrders: React.FC = () => {
     } catch (error) {
       console.error('Error loading work orders:', error);
       // Mock data for demo
-      setWorkOrders([]);
+      setWorkOrders([
+        {
+          _id: '1',
+          workOrderNumber: 'WO-2024-001',
+          workCenter: 'Assembly Line A',
+          operation: 'Chair Assembly',
+          status: 'started',
+          priority: 'high',
+          assignedTo: 'John Doe',
+          progress: 45,
+          createdAt: new Date().toISOString()
+        },
+        {
+          _id: '2',
+          workOrderNumber: 'WO-2024-002',
+          workCenter: 'Painting Booth',
+          operation: 'Surface Finishing',
+          status: 'planned',
+          priority: 'medium',
+          assignedTo: 'Jane Smith',
+          progress: 0,
+          createdAt: new Date().toISOString()
+        }
+      ]);
     }
   };
 

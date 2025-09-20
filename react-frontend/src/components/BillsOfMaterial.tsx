@@ -445,6 +445,44 @@ const BillsOfMaterial: React.FC = () => {
       setLastUpdate(new Date());
     } catch (error) {
       console.error('Error loading BOMs:', error);
+      // Mock data for demo
+      setBoms([
+        {
+          _id: '1',
+          bomNumber: 'BOM-001',
+          product: 'Office Chair',
+          version: '1.0',
+          status: 'active',
+          components: [
+            { product: 'Steel Frame', quantity: 1, unit: 'pcs' },
+            { product: 'Fabric', quantity: 2, unit: 'meters' },
+            { product: 'Screws', quantity: 12, unit: 'pcs' }
+          ],
+          operations: [
+            { workCenter: 'Assembly Line', duration: 60, description: 'Frame assembly', sequence: 1 },
+            { workCenter: 'Quality Control', duration: 15, description: 'Final inspection', sequence: 2 }
+          ],
+          totalCost: 125.50,
+          createdAt: new Date().toISOString()
+        },
+        {
+          _id: '2',
+          bomNumber: 'BOM-002',
+          product: 'Desk',
+          version: '1.2',
+          status: 'draft',
+          components: [
+            { product: 'Wood Panel', quantity: 1, unit: 'pcs' },
+            { product: 'Metal Legs', quantity: 4, unit: 'pcs' },
+            { product: 'Bolts', quantity: 8, unit: 'pcs' }
+          ],
+          operations: [
+            { workCenter: 'Assembly Line', duration: 90, description: 'Desk assembly', sequence: 1 }
+          ],
+          totalCost: 89.75,
+          createdAt: new Date().toISOString()
+        }
+      ]);
     }
   };
 

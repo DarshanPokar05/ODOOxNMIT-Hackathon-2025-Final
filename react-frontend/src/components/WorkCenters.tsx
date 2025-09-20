@@ -25,7 +25,7 @@ const KPICard: React.FC<KPICardProps> = ({ title, value, icon: Icon, color }) =>
 );
 
 const WorkCenters: React.FC = () => {
-  const [workCenters, setWorkCenters] = useState([]);
+  const [workCenters, setWorkCenters] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
@@ -47,6 +47,8 @@ const WorkCenters: React.FC = () => {
       setWorkCenters(response.data);
     } catch (error) {
       console.error('Error loading work centers:', error);
+      // Use mock data when API fails
+      setWorkCenters(mockWorkCenters);
     }
   };
 
@@ -166,7 +168,7 @@ const WorkCenters: React.FC = () => {
 
       {/* Work Centers Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {mockWorkCenters.map((center) => (
+        {(workCenters.length > 0 ? workCenters : mockWorkCenters).map((center: any) => (
           <div key={center._id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div className="flex items-start justify-between mb-4">
               <div>
@@ -234,7 +236,7 @@ const WorkCenters: React.FC = () => {
             <div>
               <h4 className="text-sm font-medium text-gray-900 mb-2">Today's Schedule</h4>
               <div className="space-y-1">
-                {center.todaySchedule.map((schedule, index) => (
+                {center.todaySchedule.map((schedule: any, index: number) => (
                   <div key={index} className="text-xs text-gray-600">
                     <span className="font-medium">{schedule.time}</span> {schedule.task}
                   </div>
