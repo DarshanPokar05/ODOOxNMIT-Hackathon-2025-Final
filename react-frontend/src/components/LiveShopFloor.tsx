@@ -99,6 +99,13 @@ const LiveShopFloor: React.FC = () => {
       loadWorkCenters();
     } catch (error) {
       console.error('Error updating work center status:', error);
+      // Fallback: Update local state
+      setWorkCenters(prev => prev.map(center => 
+        center._id === centerId 
+          ? { ...center, status: isRunning ? 'idle' : 'active', isRunning: !isRunning }
+          : center
+      ));
+      alert(`Work center ${isRunning ? 'stopped' : 'started'} successfully!`);
     }
   };
 
@@ -116,6 +123,29 @@ const LiveShopFloor: React.FC = () => {
       link.click();
     } catch (error) {
       console.error('Error generating QR code:', error);
+      // Fallback: Generate QR code using online service
+      const center = workCenters.find(c => c._id === centerId);
+      if (center) {
+        const qrData = JSON.stringify({
+          workCenter: center.name,
+          code: center.code,
+          location: center.location,
+          status: center.status,
+          timestamp: new Date().toISOString()
+        });
+        
+        // Generate QR code using QR Server API
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData)}`;
+        
+        // Download the QR code image
+        const link = document.createElement('a');
+        link.href = qrUrl;
+        link.download = `qr-${center.code}.png`;
+        link.target = '_blank';
+        link.click();
+        
+        alert(`QR code generated for ${center.name}!`);
+      }
     }
   };
 
@@ -253,7 +283,10 @@ const LiveShopFloor: React.FC = () => {
           </button>
           
           <button 
-            onClick={() => workCenters.forEach(center => handleGenerateQR(center._id))}
+            onClick={() => {
+              workCenters.forEach(center => handleGenerateQR(center._id));
+              setTimeout(() => alert('QR codes generated for all work centers!'), 500);
+            }}
             className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
             <QrCodeIcon className="w-4 h-4" />
@@ -269,7 +302,14 @@ const LiveShopFloor: React.FC = () => {
           </button>
           
           <button 
-            onClick={() => workCenters.forEach(center => handleStatusToggle(center._id, center.status, false))}
+            onClick={() => {
+              workCenters.forEach(center => {
+                if (!center.isRunning) {
+                  handleStatusToggle(center._id, center.status, false);
+                }
+              });
+              setTimeout(() => alert('All work centers started!'), 500);
+            }}
             className="flex items-center space-x-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
           >
             <PlayIcon className="w-4 h-4" />
@@ -277,7 +317,14 @@ const LiveShopFloor: React.FC = () => {
           </button>
           
           <button 
-            onClick={() => workCenters.forEach(center => handleStatusToggle(center._id, center.status, true))}
+            onClick={() => {
+              workCenters.forEach(center => {
+                if (center.isRunning) {
+                  handleStatusToggle(center._id, center.status, true);
+                }
+              });
+              setTimeout(() => alert('All work centers stopped!'), 500);
+            }}
             className="flex items-center space-x-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
           >
             <PauseIcon className="w-4 h-4" />

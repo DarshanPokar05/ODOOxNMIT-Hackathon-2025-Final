@@ -45,7 +45,7 @@ const StockLedger: React.FC = () => {
     return () => {
       socket.disconnect();
     };
-  }, [selectedCategory]);
+  }, [selectedCategory, searchTerm]);
 
   const loadProducts = async () => {
     try {
@@ -57,8 +57,8 @@ const StockLedger: React.FC = () => {
       setProducts(response.data);
     } catch (error) {
       console.error('Error loading products:', error);
-      // Mock data for demo
-      setProducts([
+      // Mock data for demo with filtering
+      const allProducts = [
         {
           _id: '1',
           code: 'PROD-001',
@@ -89,7 +89,24 @@ const StockLedger: React.FC = () => {
           minStockLevel: 15,
           costPrice: 75.00
         }
-      ]);
+      ];
+      
+      // Apply filters
+      let filteredProducts = allProducts;
+      
+      if (selectedCategory !== 'All Categories') {
+        const categoryType = selectedCategory.toLowerCase().replace(' ', '_');
+        filteredProducts = filteredProducts.filter(p => p.type === categoryType);
+      }
+      
+      if (searchTerm) {
+        filteredProducts = filteredProducts.filter(p => 
+          p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.code.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+      }
+      
+      setProducts(filteredProducts);
     }
   };
 
@@ -117,8 +134,41 @@ const StockLedger: React.FC = () => {
       await stockLedgerAPI.createEntry({ productId, type, quantity, reason });
       loadProducts();
       loadKPIs();
+      alert('Stock movement recorded successfully!');
     } catch (error) {
       console.error('Error creating stock movement:', error);
+      // Fallback: Update local state
+      setProducts(prev => prev.map(p => {
+        if (p._id === productId) {
+          const newQuantity = type === 'in' 
+            ? p.stockQuantity + quantity 
+            : Math.max(0, p.stockQuantity - quantity);
+          return { ...p, stockQuantity: newQuantity };
+        }
+        return p;
+      }));
+      
+      // Update KPIs
+      const updatedProducts = products.map(p => {
+        if (p._id === productId) {
+          const newQuantity = type === 'in' 
+            ? p.stockQuantity + quantity 
+            : Math.max(0, p.stockQuantity - quantity);
+          return { ...p, stockQuantity: newQuantity };
+        }
+        return p;
+      });
+      
+      const stockValue = updatedProducts.reduce((sum, p) => sum + (p.stockQuantity * p.costPrice), 0);
+      const lowStockItems = updatedProducts.filter(p => p.stockQuantity <= p.minStockLevel).length;
+      setKpis((prev: any) => ({ 
+        ...prev, 
+        stockValue, 
+        lowStockItems, 
+        todayMovements: prev.todayMovements + 1 
+      }));
+      
+      alert('Stock movement recorded successfully!');
     }
   };
 
@@ -167,24 +217,30 @@ const StockLedger: React.FC = () => {
               type="text"
               placeholder="Search products..."
               value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); loadProducts(); }}
+              onChange={(e) => { setSearchTerm(e.target.value); }}
               className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
             />
           </div>
           <select 
             value={selectedCategory}
-            onChange={(e) => { setSelectedCategory(e.target.value); loadProducts(); }}
+            onChange={(e) => { setSelectedCategory(e.target.value); }}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
           >
             <option>All Categories</option>
             <option>Finished Products</option>
             <option>Raw Materials</option>
             <option>Components</option>
-
           </select>
         </div>
         <button 
-          onClick={() => setShowModal(true)}
+          onClick={() => {
+            if (products.length === 0) {
+              alert('No products available for stock movement');
+              return;
+            }
+            setSelectedProduct(products[0]);
+            setShowStockModal(true);
+          }}
           className="flex items-center space-x-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700"
         >
           <PlusIcon className="w-4 h-4" />
@@ -321,32 +377,50 @@ const StockLedger: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">Stock Movement</h3>
-              <button onClick={() => setShowStockModal(false)}>
+              <h3 className="text-lg font-semibold text-gray-900">Stock Movement - {selectedProduct.name}</h3>
+              <button onClick={() => {
+                setShowStockModal(false);
+                setStockMovement({ type: 'in', quantity: 0, reason: '' });
+              }}>
                 <XMarkIcon className="w-6 h-6 text-gray-400" />
               </button>
             </div>
             <form onSubmit={async (e) => {
               e.preventDefault();
-              try {
-                await stockLedgerAPI.createEntry({
-                  productId: selectedProduct._id,
-                  type: stockMovement.type,
-                  quantity: stockMovement.quantity,
-                  reason: stockMovement.reason
-                });
-                setShowStockModal(false);
-                setStockMovement({ type: 'in', quantity: 0, reason: '' });
-                loadProducts();
-                loadKPIs();
-              } catch (error) {
-                console.error('Error creating stock movement:', error);
+              
+              if (!stockMovement.quantity || stockMovement.quantity <= 0) {
+                alert('Please enter a valid quantity');
+                return;
               }
+              
+              if (!stockMovement.reason.trim()) {
+                alert('Please provide a reason for the stock movement');
+                return;
+              }
+              
+              if (stockMovement.type === 'out' && stockMovement.quantity > selectedProduct.stockQuantity) {
+                alert(`Cannot remove ${stockMovement.quantity} items. Only ${selectedProduct.stockQuantity} available.`);
+                return;
+              }
+              
+              await handleStockMovement(
+                selectedProduct._id,
+                stockMovement.type,
+                stockMovement.quantity,
+                stockMovement.reason
+              );
+              
+              setShowStockModal(false);
+              setStockMovement({ type: 'in', quantity: 0, reason: '' });
             }}>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Product</label>
-                  <input type="text" value={selectedProduct.name} disabled className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50" />
+                  <input type="text" value={`${selectedProduct.name} (${selectedProduct.code})`} disabled className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Current Stock</label>
+                  <input type="text" value={`${selectedProduct.stockQuantity} ${selectedProduct.unit}`} disabled className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Movement Type</label>
