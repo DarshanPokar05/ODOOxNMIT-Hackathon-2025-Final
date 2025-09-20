@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { productsAPI } from '../services/api';
-import { ArchiveBoxIcon, CurrencyDollarIcon, ExclamationTriangleIcon, ArrowsRightLeftIcon, MagnifyingGlassIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { productsAPI, stockLedgerAPI } from '../services/api';
+import { ArchiveBoxIcon, CurrencyDollarIcon, ExclamationTriangleIcon, ArrowsRightLeftIcon, MagnifyingGlassIcon, PlusIcon, EyeIcon, PencilIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { io, Socket } from 'socket.io-client';
 
 interface KPICardProps {
   title: string;
@@ -27,62 +28,64 @@ const StockLedger: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [products, setProducts] = useState([]);
+  const [showModal, setShowModal] = useState(false);
+  const [showStockModal, setShowStockModal] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [stockMovement, setStockMovement] = useState({ type: 'in', quantity: 0, reason: '' });
+  const [kpis, setKpis] = useState({ totalProducts: 0, stockValue: 0, lowStockItems: 0, todayMovements: 0 });
 
   useEffect(() => {
     loadProducts();
+    loadKPIs();
+    
+    const socket: Socket = io('http://localhost:5000');
+    socket.on('stock_updated', loadProducts);
+    socket.on('product_updated', loadProducts);
+    
+    return () => {
+      socket.disconnect();
+    };
   }, [selectedCategory]);
 
   const loadProducts = async () => {
     try {
-      const response = await productsAPI.getAll({ category: selectedCategory });
+      const filters: any = {};
+      if (selectedCategory !== 'All Categories') filters.type = selectedCategory.toLowerCase().replace(' ', '_');
+      if (searchTerm) filters.search = searchTerm;
+      
+      const response = await productsAPI.getAll(filters);
       setProducts(response.data);
     } catch (error) {
       console.error('Error loading products:', error);
     }
   };
 
-  const mockProducts = [
-    {
-      id: 'WT-001',
-      name: 'Wooden Table',
-      category: 'Furniture',
-      stockLevel: 15,
-      minStock: 5,
-      unitCost: 450.00,
-      totalValue: 6750.00,
-      status: 'In Stock'
-    },
-    {
-      id: 'WL-001',
-      name: 'Wooden Legs',
-      category: 'Components',
-      stockLevel: 200,
-      minStock: 50,
-      unitCost: 25.00,
-      totalValue: 5000.00,
-      status: 'In Stock'
-    },
-    {
-      id: 'WTP-001',
-      name: 'Wooden Top',
-      category: 'Components',
-      stockLevel: 30,
-      minStock: 10,
-      unitCost: 180.00,
-      totalValue: 5400.00,
-      status: 'In Stock'
-    },
-    {
-      id: 'SCR-001',
-      name: 'Screws',
-      category: 'Hardware',
-      stockLevel: 5000,
-      minStock: 1000,
-      unitCost: 0.50,
-      totalValue: 2500.00,
-      status: 'In Stock'
+  const loadKPIs = async () => {
+    try {
+      const [productsRes, stockRes] = await Promise.all([
+        productsAPI.getAll(),
+        stockLedgerAPI.getCurrentStock()
+      ]);
+      
+      const totalProducts = productsRes.data.length;
+      const stockValue = productsRes.data.reduce((sum: number, p: any) => sum + (p.stockQuantity * p.costPrice), 0);
+      const lowStockItems = productsRes.data.filter((p: any) => p.stockQuantity <= p.minStockLevel).length;
+      
+      setKpis({ totalProducts, stockValue, lowStockItems, todayMovements: 0 });
+    } catch (error) {
+      console.error('Error loading KPIs:', error);
     }
-  ];
+  };
+
+  const handleStockMovement = async (productId: string, type: string, quantity: number, reason: string) => {
+    try {
+      await stockLedgerAPI.createEntry({ productId, type, quantity, reason });
+      loadProducts();
+      loadKPIs();
+    } catch (error) {
+      console.error('Error creating stock movement:', error);
+    }
+  };
 
   return (
     <div className="p-6">
@@ -96,25 +99,25 @@ const StockLedger: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <KPICard
           title="Total Products"
-          value={products.length}
+          value={kpis.totalProducts}
           icon={ArchiveBoxIcon}
           color="bg-blue-500"
         />
         <KPICard
           title="Stock Value"
-          value="$20400"
+          value={`$${kpis.stockValue.toFixed(2)}`}
           icon={CurrencyDollarIcon}
           color="bg-green-500"
         />
         <KPICard
           title="Low Stock Items"
-          value={0}
+          value={kpis.lowStockItems}
           icon={ExclamationTriangleIcon}
           color="bg-yellow-500"
         />
         <KPICard
           title="Today's Movements"
-          value={0}
+          value={kpis.todayMovements}
           icon={ArrowsRightLeftIcon}
           color="bg-purple-500"
         />
@@ -129,24 +132,28 @@ const StockLedger: React.FC = () => {
               type="text"
               placeholder="Search products..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              onChange={(e) => { setSearchTerm(e.target.value); loadProducts(); }}
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
             />
           </div>
           <select 
             value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            onChange={(e) => { setSelectedCategory(e.target.value); loadProducts(); }}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
           >
             <option>All Categories</option>
-            <option>Furniture</option>
+            <option>Finished Products</option>
+            <option>Raw Materials</option>
             <option>Components</option>
-            <option>Hardware</option>
+
           </select>
         </div>
-        <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+        <button 
+          onClick={() => setShowModal(true)}
+          className="flex items-center space-x-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700"
+        >
           <PlusIcon className="w-4 h-4" />
-          <span>Add Product</span>
+          <span>Stock Movement</span>
         </button>
       </div>
 
@@ -185,7 +192,7 @@ const StockLedger: React.FC = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {products.map((product: any) => (
-                <tr key={product.id} className="hover:bg-gray-50">
+                <tr key={product._id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
                       <div className="text-sm font-medium text-gray-900">{product.name}</div>
@@ -193,37 +200,53 @@ const StockLedger: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm text-gray-900">{product.category}</span>
+                    <span className="text-sm text-gray-900">{product.type?.replace('_', ' ')}</span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
-                      <div className="text-sm font-medium text-gray-900">{product.stockLevel} {product.unit || 'pieces'}</div>
-                      <div className="text-sm text-gray-500">Min: {product.minStock} {product.unit || 'pieces'}</div>
+                      <div className={`text-sm font-medium ${
+                        product.stockQuantity <= product.minStockLevel ? 'text-red-600' : 'text-gray-900'
+                      }`}>
+                        {product.stockQuantity} {product.unit}
+                      </div>
+                      <div className="text-sm text-gray-500">Min: {product.minStockLevel} {product.unit}</div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm text-gray-900">${product.unitCost.toFixed(2)}</span>
+                    <span className="text-sm text-gray-900">${product.costPrice?.toFixed(2) || '0.00'}</span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm font-medium text-gray-900">${(product.stockLevel * product.unitCost).toFixed(2)}</span>
+                    <span className="text-sm font-medium text-gray-900">
+                      ${((product.stockQuantity || 0) * (product.costPrice || 0)).toFixed(2)}
+                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      <div className="w-1.5 h-1.5 bg-green-400 rounded-full mr-1"></div>
-                      In Stock
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      product.stockQuantity <= product.minStockLevel 
+                        ? 'bg-red-100 text-red-800' 
+                        : 'bg-green-100 text-green-800'
+                    }`}>
+                      <div className={`w-1.5 h-1.5 rounded-full mr-1 ${
+                        product.stockQuantity <= product.minStockLevel ? 'bg-red-400' : 'bg-green-400'
+                      }`}></div>
+                      {product.stockQuantity <= product.minStockLevel ? 'Low Stock' : 'In Stock'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
-                      <button className="text-blue-600 hover:text-blue-900">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
+                      <button 
+                        onClick={() => { setSelectedProduct(product); setShowStockModal(true); }}
+                        className="text-teal-600 hover:text-teal-900"
+                        title="Stock Movement"
+                      >
+                        <ArrowsRightLeftIcon className="w-4 h-4" />
                       </button>
-                      <button className="text-blue-600 hover:text-blue-900">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                        </svg>
+                      <button 
+                        onClick={() => { setSelectedProduct(product); setShowModal(true); }}
+                        className="text-blue-600 hover:text-blue-900"
+                        title="View Details"
+                      >
+                        <EyeIcon className="w-4 h-4" />
                       </button>
                     </div>
                   </td>
@@ -233,6 +256,103 @@ const StockLedger: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* View Product Modal */}
+      {showModal && selectedProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-2xl mx-4">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">Product Details</h3>
+              <button onClick={() => setShowModal(false)}>
+                <XMarkIcon className="w-6 h-6 text-gray-400" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><strong>Code:</strong> {selectedProduct.code}</div>
+              <div><strong>Name:</strong> {selectedProduct.name}</div>
+              <div><strong>Type:</strong> {selectedProduct.type?.replace('_', ' ')}</div>
+              <div><strong>Unit:</strong> {selectedProduct.unit}</div>
+              <div><strong>Stock:</strong> {selectedProduct.stockQuantity}</div>
+              <div><strong>Min Stock:</strong> {selectedProduct.minStockLevel}</div>
+              <div><strong>Cost Price:</strong> ${selectedProduct.costPrice}</div>
+              <div><strong>Total Value:</strong> ${(selectedProduct.stockQuantity * selectedProduct.costPrice).toFixed(2)}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Stock Movement Modal */}
+      {showStockModal && selectedProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">Stock Movement</h3>
+              <button onClick={() => setShowStockModal(false)}>
+                <XMarkIcon className="w-6 h-6 text-gray-400" />
+              </button>
+            </div>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              try {
+                await stockLedgerAPI.createEntry({
+                  productId: selectedProduct._id,
+                  type: stockMovement.type,
+                  quantity: stockMovement.quantity,
+                  reason: stockMovement.reason
+                });
+                setShowStockModal(false);
+                setStockMovement({ type: 'in', quantity: 0, reason: '' });
+                loadProducts();
+                loadKPIs();
+              } catch (error) {
+                console.error('Error creating stock movement:', error);
+              }
+            }}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Product</label>
+                  <input type="text" value={selectedProduct.name} disabled className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Movement Type</label>
+                  <select 
+                    value={stockMovement.type}
+                    onChange={(e) => setStockMovement({...stockMovement, type: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                  >
+                    <option value="in">Stock In</option>
+                    <option value="out">Stock Out</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+                  <input 
+                    type="number"
+                    value={stockMovement.quantity}
+                    onChange={(e) => setStockMovement({...stockMovement, quantity: parseInt(e.target.value)})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
+                  <input 
+                    type="text"
+                    value={stockMovement.reason}
+                    onChange={(e) => setStockMovement({...stockMovement, reason: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end space-x-3 pt-4">
+                <button type="button" onClick={() => setShowStockModal(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600">Create Movement</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

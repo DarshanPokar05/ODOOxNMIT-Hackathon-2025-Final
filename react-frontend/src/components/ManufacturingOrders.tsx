@@ -29,6 +29,8 @@ const ManufacturingOrders: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<ManufacturingOrder | null>(null);
+  const [showViewModal, setShowViewModal] = useState(false);
   
   const [formData, setFormData] = useState({
     orderNumber: '',
@@ -201,7 +203,15 @@ const ManufacturingOrders: React.FC = () => {
                   <div className="text-sm text-gray-600">
                     {order.deadline ? new Date(order.deadline).toLocaleDateString() : '-'}
                   </div>
-                  <div className="text-sm text-teal-600 hover:text-teal-800 cursor-pointer">View</div>
+                  <button 
+                    onClick={() => {
+                      setSelectedOrder(order);
+                      setShowViewModal(true);
+                    }}
+                    className="text-sm text-teal-600 hover:text-teal-800 cursor-pointer"
+                  >
+                    View
+                  </button>
                 </div>
               </div>
             ))
@@ -320,6 +330,103 @@ const ManufacturingOrders: React.FC = () => {
                 {loading ? 'Creating...' : 'Create Order'}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* View Order Modal */}
+      {showViewModal && selectedOrder && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-2xl mx-4">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">Manufacturing Order Details</h3>
+              <button
+                onClick={() => setShowViewModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Order Number</label>
+                  <p className="text-sm text-gray-900 mt-1">{selectedOrder.orderNumber}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Product</label>
+                  <p className="text-sm text-gray-900 mt-1">{selectedOrder.product}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Bill of Materials</label>
+                  <p className="text-sm text-gray-900 mt-1">{selectedOrder.billOfMaterials || '-'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Quantity</label>
+                  <p className="text-sm text-gray-900 mt-1">{selectedOrder.quantity}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Priority</label>
+                  <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium mt-1 ${
+                    selectedOrder.priority === 'urgent' ? 'bg-red-100 text-red-800' :
+                    selectedOrder.priority === 'high' ? 'bg-orange-100 text-orange-800' :
+                    selectedOrder.priority === 'medium' ? 'bg-blue-100 text-blue-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {selectedOrder.priority.charAt(0).toUpperCase() + selectedOrder.priority.slice(1)}
+                  </span>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Status</label>
+                  <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium mt-1 ${
+                    selectedOrder.status === 'done' ? 'bg-green-100 text-green-800' :
+                    selectedOrder.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-blue-100 text-blue-800'
+                  }`}>
+                    {selectedOrder.status === 'in_progress' ? 'In Progress' : 
+                     selectedOrder.status === 'done' ? 'Completed' : 'Planned'}
+                  </span>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Progress</label>
+                  <div className="mt-1">
+                    <p className="text-sm text-gray-900 mb-1">{selectedOrder.progress}%</p>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-teal-500 h-2 rounded-full" 
+                        style={{ width: `${selectedOrder.progress}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Start Date</label>
+                  <p className="text-sm text-gray-900 mt-1">
+                    {selectedOrder.startDate ? new Date(selectedOrder.startDate).toLocaleDateString() : '-'}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Due Date</label>
+                  <p className="text-sm text-gray-900 mt-1">
+                    {selectedOrder.deadline ? new Date(selectedOrder.deadline).toLocaleDateString() : '-'}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Created</label>
+                  <p className="text-sm text-gray-900 mt-1">{new Date(selectedOrder.createdAt).toLocaleString()}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={() => setShowViewModal(false)}
+                className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

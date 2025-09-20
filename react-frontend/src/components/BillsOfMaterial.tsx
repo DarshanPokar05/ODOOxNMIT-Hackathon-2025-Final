@@ -1,184 +1,404 @@
-import React, { useState } from 'react';
-import { DocumentTextIcon, MagnifyingGlassIcon, PlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import React, { useState, useEffect } from 'react';
+import { DocumentTextIcon, MagnifyingGlassIcon, PlusIcon, XMarkIcon, TrashIcon, EyeIcon } from '@heroicons/react/24/outline';
+import { billsOfMaterialAPI } from '../services/api';
+import { io, Socket } from 'socket.io-client';
+
+interface BOM {
+  _id: string;
+  bomNumber: string;
+  product: string;
+  version: string;
+  status: string;
+  components: Array<{
+    product: string;
+    quantity: number;
+    unit: string;
+    notes?: string;
+  }>;
+  operations: Array<{
+    workCenter: string;
+    duration: number;
+    description?: string;
+    sequence: number;
+  }>;
+  totalCost: number;
+  createdAt: string;
+}
 
 interface BOMModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSubmit: (data: any) => void;
+  loading: boolean;
 }
 
-const BOMModal: React.FC<BOMModalProps> = ({ isOpen, onClose }) => {
-  const [components, setComponents] = useState([{ product: '', quantity: '', unit: 'pieces', notes: '' }]);
-  const [operations, setOperations] = useState([{ workCenter: '', duration: '', description: '', sequence: 1 }]);
+const BOMModal: React.FC<BOMModalProps> = ({ isOpen, onClose, onSubmit, loading }) => {
+  const [formData, setFormData] = useState({
+    product: '',
+    version: '1.0',
+    status: 'draft'
+  });
+  const [components, setComponents] = useState([{ product: 'Wood', quantity: 1, unit: 'pieces', notes: '' }]);
+  const [operations, setOperations] = useState([{ workCenter: 'Assembly Line', duration: 60, description: '', sequence: 1 }]);
 
   const addComponent = () => {
-    setComponents([...components, { product: '', quantity: '', unit: 'pieces', notes: '' }]);
+    setComponents([...components, { product: '', quantity: 1, unit: 'pieces', notes: '' }]);
+  };
+
+  const removeComponent = (index: number) => {
+    if (components.length > 1) {
+      setComponents(components.filter((_, i) => i !== index));
+    }
   };
 
   const addOperation = () => {
-    setOperations([...operations, { workCenter: '', duration: '', description: '', sequence: operations.length + 1 }]);
+    setOperations([...operations, { workCenter: '', duration: 60, description: '', sequence: operations.length + 1 }]);
   };
+
+  const removeOperation = (index: number) => {
+    if (operations.length > 1) {
+      setOperations(operations.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const validComponents = components.filter(c => c.product.trim());
+    const validOperations = operations.filter(o => o.workCenter.trim());
+    
+    if (validComponents.length === 0) {
+      alert('Please add at least one component');
+      return;
+    }
+    
+    if (validOperations.length === 0) {
+      alert('Please add at least one operation');
+      return;
+    }
+    
+    onSubmit({
+      ...formData,
+      components: validComponents,
+      operations: validOperations
+    });
+  };
+
+  const resetForm = () => {
+    setFormData({ product: '', version: '1.0', status: 'draft' });
+    setComponents([{ product: 'Wood', quantity: 1, unit: 'pieces', notes: '' }]);
+    setOperations([{ workCenter: 'Assembly Line', duration: 60, description: '', sequence: 1 }]);
+  };
+
+  React.useEffect(() => {
+    if (!isOpen) resetForm();
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Create New BOM</h2>
+      <div className="bg-white rounded-xl p-6 w-full max-w-2xl mx-4">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-gray-900">Create New BOM</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <XMarkIcon className="w-6 h-6" />
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
-          {/* Basic Info */}
+        <form onSubmit={handleSubmit} className="space-y-6 max-h-96 overflow-y-auto">
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Product *</label>
-              <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                <option>Select a product</option>
-                <option>Wooden Table</option>
-                <option>Wooden Legs</option>
-                <option>Wooden Top</option>
-                <option>Screws</option>
-                <option>Varnish Bottle</option>
+              <select 
+                value={formData.product}
+                onChange={(e) => setFormData({...formData, product: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                required
+              >
+                <option value="">Select product</option>
+                <option value="Office Chair">Office Chair</option>
+                <option value="Desk">Desk</option>
+                <option value="Table">Table</option>
+                <option value="Cabinet">Cabinet</option>
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Version *</label>
               <input 
                 type="text" 
-                defaultValue="1.0"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                value={formData.version}
+                onChange={(e) => setFormData({...formData, version: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                required
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                <option>Active</option>
-                <option>Draft</option>
-                <option>Archived</option>
+              <select 
+                value={formData.status}
+                onChange={(e) => setFormData({...formData, status: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+              >
+                <option value="draft">Draft</option>
+                <option value="active">Active</option>
               </select>
             </div>
           </div>
 
-          {/* Components Section */}
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900">Components</h3>
-              <button 
-                onClick={addComponent}
-                className="flex items-center space-x-2 px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-              >
+            <div className="flex items-center justify-between mb-3">
+              <label className="block text-sm font-medium text-gray-700">Components</label>
+              <button type="button" onClick={addComponent} className="flex items-center space-x-1 px-3 py-1 bg-teal-500 text-white rounded-lg text-sm hover:bg-teal-600">
                 <PlusIcon className="w-4 h-4" />
                 <span>Add Component</span>
               </button>
             </div>
-            
-            <div className="space-y-3">
-              {components.map((component, index) => (
-                <div key={index} className="grid grid-cols-4 gap-3">
-                  <select className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    <option>Select product</option>
-                    <option>Wooden Table</option>
-                    <option>Wooden Legs</option>
-                    <option>Wooden Top</option>
-                    <option>Screws</option>
-                    <option>Varnish Bottle</option>
+            <div className="space-y-2">
+              {components.map((comp, index) => (
+                <div key={index} className="grid grid-cols-5 gap-2 items-center">
+                  <select 
+                    value={comp.product}
+                    onChange={(e) => {
+                      const newComps = [...components];
+                      newComps[index].product = e.target.value;
+                      setComponents(newComps);
+                    }}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500"
+                  >
+                    <option value="">Select material</option>
+                    <option value="Wood">Wood</option>
+                    <option value="Steel">Steel</option>
+                    <option value="Fabric">Fabric</option>
+                    <option value="Screws">Screws</option>
+                    <option value="Paint">Paint</option>
                   </select>
                   <input 
                     type="number" 
-                    placeholder="1"
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Qty"
+                    value={comp.quantity}
+                    onChange={(e) => {
+                      const newComps = [...components];
+                      newComps[index].quantity = parseInt(e.target.value) || 1;
+                      setComponents(newComps);
+                    }}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500"
                   />
+                  <select 
+                    value={comp.unit}
+                    onChange={(e) => {
+                      const newComps = [...components];
+                      newComps[index].unit = e.target.value;
+                      setComponents(newComps);
+                    }}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500"
+                  >
+                    <option value="pieces">Pieces</option>
+                    <option value="kg">Kg</option>
+                    <option value="meters">Meters</option>
+                    <option value="liters">Liters</option>
+                  </select>
                   <input 
                     type="text" 
-                    placeholder="pieces"
-                    defaultValue="pieces"
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Notes"
+                    value={comp.notes}
+                    onChange={(e) => {
+                      const newComps = [...components];
+                      newComps[index].notes = e.target.value;
+                      setComponents(newComps);
+                    }}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500"
                   />
-                  <input 
-                    type="text" 
-                    placeholder="Notes (optional)"
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                  <button
+                    type="button"
+                    onClick={() => removeComponent(index)}
+                    className="p-2 text-red-500 hover:text-red-700"
+                    disabled={components.length === 1}
+                  >
+                    <TrashIcon className="w-4 h-4" />
+                  </button>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Operations Section */}
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900">Operations</h3>
-              <button 
-                onClick={addOperation}
-                className="flex items-center space-x-2 px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-              >
+            <div className="flex items-center justify-between mb-3">
+              <label className="block text-sm font-medium text-gray-700">Operations</label>
+              <button type="button" onClick={addOperation} className="flex items-center space-x-1 px-3 py-1 bg-teal-500 text-white rounded-lg text-sm hover:bg-teal-600">
                 <PlusIcon className="w-4 h-4" />
                 <span>Add Operation</span>
               </button>
             </div>
-            
-            <div className="space-y-3">
-              {operations.map((operation, index) => (
-                <div key={index} className="grid grid-cols-4 gap-3">
-                  <select className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    <option>Select work center</option>
-                    <option>Assembly Line</option>
-                    <option>Paint Floor</option>
-                    <option>Packaging Line</option>
+            <div className="space-y-2">
+              {operations.map((op, index) => (
+                <div key={index} className="grid grid-cols-5 gap-2 items-center">
+                  <select 
+                    value={op.workCenter}
+                    onChange={(e) => {
+                      const newOps = [...operations];
+                      newOps[index].workCenter = e.target.value;
+                      setOperations(newOps);
+                    }}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500"
+                  >
+                    <option value="">Select work center</option>
+                    <option value="Assembly Line">Assembly Line</option>
+                    <option value="Paint Booth">Paint Booth</option>
+                    <option value="Quality Control">Quality Control</option>
+                    <option value="Packaging">Packaging</option>
                   </select>
                   <input 
                     type="number" 
-                    placeholder="60"
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Duration (min)"
+                    value={op.duration}
+                    onChange={(e) => {
+                      const newOps = [...operations];
+                      newOps[index].duration = parseInt(e.target.value) || 60;
+                      setOperations(newOps);
+                    }}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500"
                   />
                   <input 
                     type="text" 
                     placeholder="Description"
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={op.description}
+                    onChange={(e) => {
+                      const newOps = [...operations];
+                      newOps[index].description = e.target.value;
+                      setOperations(newOps);
+                    }}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500"
                   />
                   <input 
                     type="number" 
-                    placeholder="1"
-                    defaultValue={index + 1}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Sequence"
+                    value={op.sequence}
+                    onChange={(e) => {
+                      const newOps = [...operations];
+                      newOps[index].sequence = parseInt(e.target.value) || 1;
+                      setOperations(newOps);
+                    }}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500"
                   />
+                  <button
+                    type="button"
+                    onClick={() => removeOperation(index)}
+                    className="p-2 text-red-500 hover:text-red-700"
+                    disabled={operations.length === 1}
+                  >
+                    <TrashIcon className="w-4 h-4" />
+                  </button>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Cost Summary */}
           <div className="bg-gray-50 rounded-lg p-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-3">Cost Summary</h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Component Cost:</span>
-                <span className="font-medium">$0.00</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Operation Cost:</span>
-                <span className="font-medium">$0.00</span>
-              </div>
-              <div className="flex justify-between border-t border-gray-200 pt-2">
-                <span className="font-medium text-gray-900">Total Cost:</span>
-                <span className="font-bold text-gray-900">$0.00</span>
-              </div>
+            <h4 className="text-sm font-medium text-gray-900 mb-2">Summary</h4>
+            <div className="text-sm text-gray-600 space-y-1">
+              <div>Components: {components.filter(c => c.product).length}</div>
+              <div>Operations: {operations.filter(o => o.workCenter).length}</div>
+              <div>Total Duration: {operations.reduce((sum, op) => sum + op.duration, 0)} minutes</div>
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+            <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+              Cancel
+            </button>
+            <button type="submit" disabled={loading} className="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 disabled:opacity-50">
+              {loading ? 'Creating...' : 'Create BOM'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+interface ViewModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  bom: BOM | null;
+  onStatusChange: (id: string, status: string) => void;
+}
+
+const ViewModal: React.FC<ViewModalProps> = ({ isOpen, onClose, bom, onStatusChange }) => {
+  if (!isOpen || !bom) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl p-6 w-full max-w-3xl mx-4">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-gray-900">BOM Details</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <XMarkIcon className="w-6 h-6" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-6 mb-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">BOM Number</label>
+            <p className="text-sm text-gray-900 mt-1">{bom.bomNumber}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Product</label>
+            <p className="text-sm text-gray-900 mt-1">{bom.product}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Version</label>
+            <p className="text-sm text-gray-900 mt-1">v{bom.version}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Status</label>
+            <div className="flex items-center space-x-2 mt-1">
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                bom.status === 'active' ? 'bg-green-100 text-green-800' :
+                bom.status === 'draft' ? 'bg-yellow-100 text-yellow-800' :
+                'bg-gray-100 text-gray-800'
+              }`}>
+                {bom.status.charAt(0).toUpperCase() + bom.status.slice(1)}
+              </span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
-          <button 
-            onClick={onClose}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-          >
-            Cancel
-          </button>
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-            Create BOM
+        <div className="mb-6">
+          <h4 className="text-sm font-medium text-gray-900 mb-3">Components ({bom.components.length})</h4>
+          <div className="space-y-2">
+            {bom.components.map((comp, index) => (
+              <div key={index} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
+                <span className="text-sm text-gray-900">{comp.product}</span>
+                <span className="text-sm text-gray-600">{comp.quantity} {comp.unit}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex space-x-2">
+            <button
+              onClick={() => onStatusChange(bom._id, 'active')}
+              className="px-3 py-1 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600"
+            >
+              Activate
+            </button>
+            <button
+              onClick={() => onStatusChange(bom._id, 'draft')}
+              className="px-3 py-1 bg-yellow-500 text-white rounded-lg text-sm hover:bg-yellow-600"
+            >
+              Draft
+            </button>
+            <button
+              onClick={() => onStatusChange(bom._id, 'archived')}
+              className="px-3 py-1 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600"
+            >
+              Archive
+            </button>
+          </div>
+          <button onClick={onClose} className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600">
+            Close
           </button>
         </div>
       </div>
@@ -187,122 +407,219 @@ const BOMModal: React.FC<BOMModalProps> = ({ isOpen, onClose }) => {
 };
 
 const BillsOfMaterial: React.FC = () => {
+  const [boms, setBoms] = useState<BOM[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState(new Date());
+  const [selectedBom, setSelectedBom] = useState<BOM | null>(null);
+  const [showViewModal, setShowViewModal] = useState(false);
 
-  const mockBOMs = [
-    {
-      id: 'WL-001',
-      name: 'Wooden Legs',
-      version: 'v1.0',
-      status: 'Active',
-      components: 1,
-      operations: 1,
-      totalTime: '60min',
-      totalCost: '$45035.00'
-    },
-    {
-      id: 'SCR-001',
-      name: 'Screws',
-      version: 'v1.0',
-      status: 'Active',
-      components: 1,
-      operations: 1,
-      totalTime: '600min',
-      totalCost: '$2000.00'
+  useEffect(() => {
+    loadBOMs();
+    
+    const socket: Socket = io('http://localhost:5000');
+    socket.on('bom_created', loadBOMs);
+    socket.on('bom_updated', loadBOMs);
+    socket.on('bom_deleted', loadBOMs);
+    
+    const interval = setInterval(() => {
+      loadBOMs();
+      setLastUpdate(new Date());
+    }, 30000);
+    
+    return () => {
+      socket.disconnect();
+      clearInterval(interval);
+    };
+  }, [statusFilter, searchTerm]);
+
+  const loadBOMs = async () => {
+    try {
+      const response = await billsOfMaterialAPI.getAll({
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        search: searchTerm || undefined
+      });
+      setBoms(response.data);
+      setLastUpdate(new Date());
+    } catch (error) {
+      console.error('Error loading BOMs:', error);
     }
-  ];
+  };
+
+  const handleCreateBOM = async (data: any) => {
+    setLoading(true);
+    try {
+      console.log('Creating BOM with data:', data);
+      
+      const response = await fetch('http://localhost:5000/api/create-bom', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+      });
+      
+      console.log('Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
+      const result = await response.json();
+      console.log('BOM created successfully:', result);
+      
+      setIsModalOpen(false);
+      loadBOMs();
+      alert('BOM created successfully!');
+    } catch (error: any) {
+      console.error('Error creating BOM:', error);
+      alert(`Error: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (id: string, status: string) => {
+    try {
+      await billsOfMaterialAPI.update(id, { status });
+      loadBOMs();
+      setShowViewModal(false);
+    } catch (error) {
+      console.error('Error updating BOM status:', error);
+    }
+  };
+
+  const filteredBOMs = boms.filter(bom => {
+    const matchesSearch = bom.product.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         bom.bomNumber.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || bom.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   return (
-    <div className="p-6">
-      {/* Header */}
+    <div className="p-6 bg-gray-50 min-h-full">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Bills of Material</h1>
         <p className="text-gray-600">Define material requirements and operations for products</p>
+        <p className="text-sm text-gray-500 mt-1">Last updated: {lastUpdate.toLocaleTimeString()}</p>
       </div>
 
-      {/* Search and Actions */}
       <div className="flex items-center justify-between mb-6">
-        <div className="relative">
-          <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search BOMs..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
+        <div className="flex items-center space-x-4">
+          <div className="relative">
+            <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search BOMs..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 w-80"
+            />
+          </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+          >
+            <option value="all">All Status</option>
+            <option value="active">Active</option>
+            <option value="draft">Draft</option>
+            <option value="archived">Archived</option>
+          </select>
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="flex items-center space-x-2 px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600"
         >
           <PlusIcon className="w-4 h-4" />
           <span>Create BOM</span>
         </button>
       </div>
 
-      {/* BOM Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {mockBOMs.map((bom) => (
-          <div key={bom.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">{bom.name}</h3>
-                <p className="text-sm text-gray-600">{bom.id}</p>
-                <div className="flex items-center space-x-4 mt-2">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    {bom.version}
-                  </span>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    {bom.status}
-                  </span>
+        {filteredBOMs.length === 0 ? (
+          <div className="col-span-2 text-center py-12">
+            <p className="text-gray-500">No bills of material found</p>
+          </div>
+        ) : (
+          filteredBOMs.map((bom) => (
+            <div key={bom._id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">{bom.product}</h3>
+                  <p className="text-sm text-gray-600">{bom.bomNumber}</p>
+                  <div className="flex items-center space-x-4 mt-2">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      v{bom.version}
+                    </span>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      bom.status === 'active' ? 'bg-green-100 text-green-800' :
+                      bom.status === 'draft' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {bom.status.charAt(0).toUpperCase() + bom.status.slice(1)}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex space-x-2">
+                  <button 
+                    onClick={() => {
+                      setSelectedBom(bom);
+                      setShowViewModal(true);
+                    }}
+                    className="p-1 text-teal-500 hover:text-teal-700"
+                  >
+                    <EyeIcon className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
-              <div className="flex space-x-2">
-                <button className="p-1 text-gray-400 hover:text-gray-600">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                  </svg>
-                </button>
-                <button className="p-1 text-gray-400 hover:text-gray-600">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              </div>
-            </div>
 
-            <div className="space-y-3">
-              <div className="flex items-center space-x-2 text-sm text-gray-600">
-                <DocumentTextIcon className="w-4 h-4" />
-                <span>{bom.components} Components</span>
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                  <DocumentTextIcon className="w-4 h-4" />
+                  <span>{bom.components.length} Components</span>
+                </div>
+                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                  <DocumentTextIcon className="w-4 h-4" />
+                  <span>${bom.totalCost.toFixed(2)} total cost</span>
+                </div>
               </div>
-              <div className="flex items-center space-x-2 text-sm text-gray-600">
-                <DocumentTextIcon className="w-4 h-4" />
-                <span>{bom.operations} Operations</span>
-              </div>
-              <div className="flex items-center space-x-2 text-sm text-gray-600">
-                <DocumentTextIcon className="w-4 h-4" />
-                <span>{bom.totalTime} total</span>
-              </div>
-              <div className="flex items-center space-x-2 text-sm text-gray-600">
-                <DocumentTextIcon className="w-4 h-4" />
-                <span>{bom.totalCost} total cost</span>
-              </div>
-            </div>
 
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <h4 className="text-sm font-medium text-gray-900 mb-2">Components</h4>
-              <p className="text-sm text-gray-600">
-                {bom.id === 'WL-001' ? '100x Wooden Table' : '100x Varnish Bottle'}
-              </p>
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <h4 className="text-sm font-medium text-gray-900 mb-2">Components</h4>
+                <div className="space-y-1">
+                  {bom.components.slice(0, 3).map((comp, index) => (
+                    <p key={index} className="text-sm text-gray-600">
+                      {comp.quantity}x {comp.product}
+                    </p>
+                  ))}
+                  {bom.components.length > 3 && (
+                    <p className="text-sm text-gray-500">+{bom.components.length - 3} more...</p>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
-      <BOMModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <BOMModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onSubmit={handleCreateBOM}
+        loading={loading}
+      />
+
+      <ViewModal
+        isOpen={showViewModal}
+        onClose={() => setShowViewModal(false)}
+        bom={selectedBom}
+        onStatusChange={handleStatusChange}
+      />
     </div>
   );
 };
