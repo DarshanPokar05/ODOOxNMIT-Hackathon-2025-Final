@@ -14,14 +14,26 @@ import ProfileReports from './components/ProfileReports';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentPage, setCurrentPage] = useState('dashboard');
+  const [currentPage, setCurrentPage] = useState(() => {
+    return localStorage.getItem('currentPage') || 'dashboard';
+  });
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (token) {
+    // Only set authenticated if token exists and is valid
+    if (token && token !== 'null' && token !== 'undefined') {
       setIsAuthenticated(true);
+    } else {
+      // Clear invalid tokens
+      localStorage.removeItem('token');
+      setIsAuthenticated(false);
     }
   }, []);
+
+  const handlePageChange = (page: string) => {
+    setCurrentPage(page);
+    localStorage.setItem('currentPage', page);
+  };
 
   const handleLogin = (token: string) => {
     setIsAuthenticated(true);
@@ -64,7 +76,7 @@ function App() {
   }
 
   return (
-    <Layout currentPage={currentPage} onNavigate={setCurrentPage} onLogout={handleLogout}>
+    <Layout currentPage={currentPage} onNavigate={handlePageChange} onLogout={handleLogout}>
       {renderPage()}
     </Layout>
   );

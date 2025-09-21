@@ -31,7 +31,7 @@ const StockLedger: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [showStockModal, setShowStockModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
-  const [stockMovement, setStockMovement] = useState({ type: 'in', quantity: 0, reason: '' });
+  const [stockMovement, setStockMovement] = useState({ type: 'in', quantity: 0, reason: '', productName: '' });
   const [kpis, setKpis] = useState<any>({ totalProducts: 0, stockValue: 0, lowStockItems: 0, todayMovements: 0 });
 
   useEffect(() => {
@@ -380,7 +380,7 @@ const StockLedger: React.FC = () => {
               <h3 className="text-lg font-semibold text-gray-900">Stock Movement - {selectedProduct.name}</h3>
               <button onClick={() => {
                 setShowStockModal(false);
-                setStockMovement({ type: 'in', quantity: 0, reason: '' });
+                setStockMovement({ type: 'in', quantity: 0, reason: '', productName: '' });
               }}>
                 <XMarkIcon className="w-6 h-6 text-gray-400" />
               </button>
@@ -411,16 +411,29 @@ const StockLedger: React.FC = () => {
               );
               
               setShowStockModal(false);
-              setStockMovement({ type: 'in', quantity: 0, reason: '' });
+              setSelectedProduct(null);
+              setStockMovement({ type: 'in', quantity: 0, reason: '', productName: '' });
             }}>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Product</label>
-                  <input type="text" value={`${selectedProduct.name} (${selectedProduct.code})`} disabled className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50" />
+                  <input 
+                    type="text" 
+                    value={stockMovement.productName || selectedProduct.name} 
+                    onChange={(e) => setStockMovement({...stockMovement, productName: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500" 
+                    placeholder="Enter product name"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Current Stock</label>
-                  <input type="text" value={`${selectedProduct.stockQuantity} ${selectedProduct.unit}`} disabled className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50" />
+                  <input 
+                    type="number" 
+                    value={selectedProduct.stockQuantity} 
+                    onChange={(e) => setSelectedProduct({...selectedProduct, stockQuantity: parseInt(e.target.value) || 0})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500" 
+                    placeholder="Enter current stock"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Movement Type</label>
