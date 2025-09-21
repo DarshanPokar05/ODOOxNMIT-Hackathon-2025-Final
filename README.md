@@ -1,3 +1,6 @@
+#Video link
+https://drive.google.com/file/d/16SaqxpBojs39nrOGerITd9MuJkPau2sx/view?usp=drivesdk
+
 # Manufacturing ERP System
 
 Complete manufacturing management system with React.js frontend and Node.js backend integrated with MongoDB and real-time updates.
