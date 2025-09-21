@@ -5,7 +5,7 @@ const { authenticateToken } = require('../utils/auth');
 const router = express.Router();
 
 // Get stock ledger entries
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { product, transactionType, startDate, endDate } = req.query;
     const filter = {};
@@ -31,7 +31,7 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // Get current stock levels
-router.get('/current-stock', authenticateToken, async (req, res) => {
+router.get('/current-stock', async (req, res) => {
   try {
     const products = await Product.find({ isActive: true })
       .select('name code unit stockQuantity minStockLevel');
@@ -97,7 +97,7 @@ router.post('/', authenticateToken, async (req, res) => {
 });
 
 // Get stock movement for a specific product
-router.get('/product/:productId', authenticateToken, async (req, res) => {
+router.get('/product/:productId', async (req, res) => {
   try {
     const entries = await StockLedger.find({ product: req.params.productId })
       .populate('createdBy', 'name email')

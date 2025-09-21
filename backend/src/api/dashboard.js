@@ -5,7 +5,7 @@ const Product = require('../models/Product');
 const { authenticateToken } = require('../utils/auth');
 const router = express.Router();
 
-router.get('/kpis', authenticateToken, async (req, res) => {
+router.get('/kpis', async (req, res) => {
   try {
     const totalOrders = await ManufacturingOrder.countDocuments();
     const completedOrders = await ManufacturingOrder.countDocuments({ status: 'done' });

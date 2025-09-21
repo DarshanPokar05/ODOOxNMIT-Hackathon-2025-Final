@@ -46,34 +46,42 @@ const seedData = async () => {
       {
         name: 'Wooden Table',
         code: 'WT-001',
-        category: 'Furniture',
-        stockLevel: 15,
-        minStock: 5,
-        unitCost: 450.00
+        type: 'finished',
+        costPrice: 450.00,
+        sellingPrice: 500.00,
+        stockQuantity: 15,
+        minStockLevel: 5,
+        createdBy: users[0]._id
       },
       {
         name: 'Wooden Legs',
         code: 'WL-001',
-        category: 'Components',
-        stockLevel: 200,
-        minStock: 50,
-        unitCost: 25.00
+        type: 'component',
+        costPrice: 25.00,
+        sellingPrice: 30.00,
+        stockQuantity: 200,
+        minStockLevel: 50,
+        createdBy: users[0]._id
       },
       {
         name: 'Wooden Top',
         code: 'WTP-001',
-        category: 'Components',
-        stockLevel: 30,
-        minStock: 10,
-        unitCost: 180.00
+        type: 'component',
+        costPrice: 180.00,
+        sellingPrice: 200.00,
+        stockQuantity: 30,
+        minStockLevel: 10,
+        createdBy: users[0]._id
       },
       {
         name: 'Screws',
         code: 'SCR-001',
-        category: 'Hardware',
-        stockLevel: 5000,
-        minStock: 1000,
-        unitCost: 0.50
+        type: 'raw_material',
+        costPrice: 0.50,
+        sellingPrice: 0.75,
+        stockQuantity: 5000,
+        minStockLevel: 1000,
+        createdBy: users[0]._id
       }
     ]);
 
@@ -86,7 +94,9 @@ const seedData = async () => {
         costPerHour: 50,
         capacity: 8,
         utilization: 14,
-        description: 'Main assembly line for furniture'
+        description: 'Main assembly line for furniture',
+        qrCode: 'QR-AL-001',
+        createdBy: users[0]._id
       },
       {
         name: 'Paint Floor',
@@ -95,7 +105,9 @@ const seedData = async () => {
         costPerHour: 35,
         capacity: 4,
         utilization: 75,
-        description: 'Painting and finishing station'
+        description: 'Painting and finishing station',
+        qrCode: 'QR-PF-002',
+        createdBy: users[0]._id
       },
       {
         name: 'Packaging Line',
@@ -104,7 +116,9 @@ const seedData = async () => {
         costPerHour: 25,
         capacity: 6,
         utilization: 38,
-        description: 'Final packaging and quality check'
+        description: 'Final packaging and quality check',
+        qrCode: 'QR-PL-003',
+        createdBy: users[0]._id
       }
     ]);
 

@@ -4,7 +4,7 @@ const { authenticateToken } = require('../utils/auth');
 const router = express.Router();
 
 // Get all products with filtering
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { type, search, isActive = true } = req.query;
     const filter = { isActive };
@@ -27,7 +27,7 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // Get single product
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
     const product = await Product.findById(req.params.id)
       .populate('createdBy', 'name email');
@@ -101,7 +101,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 });
 
 // Get low stock products
-router.get('/alerts/low-stock', authenticateToken, async (req, res) => {
+router.get('/alerts/low-stock', async (req, res) => {
   try {
     const products = await Product.find({
       isActive: true,
