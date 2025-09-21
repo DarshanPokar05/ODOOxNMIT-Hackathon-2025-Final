@@ -109,7 +109,7 @@ router.post('/signup', async (req, res) => {
     }
 
     const otp = generateOTP();
-    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); 
 
     const user = new User({ 
       name, 
@@ -267,5 +267,6 @@ router.post('/reset-password', async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
 
 module.exports = router;
