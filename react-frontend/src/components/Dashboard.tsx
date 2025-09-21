@@ -536,7 +536,7 @@ const Dashboard: React.FC = () => {
 
             <div className="flex justify-end mt-6">
               <button
-                onClick={() => setShowViewModal(true)}
+                onClick={() => setShowViewModal(false)}
                 className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
               >
                 Close
@@ -551,3 +551,4 @@ const Dashboard: React.FC = () => {
 
 
 export default Dashboard;
+
