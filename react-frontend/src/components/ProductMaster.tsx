@@ -266,7 +266,7 @@ const ProductMaster: React.FC = () => {
                       {product.stockQuantity}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">${product.costPrice}</td>
+                  <td className="px-6 py-4 text-sm text-gray-900">₹{product.costPrice}</td>
                   <td className="px-6 py-4">
                     <div className="flex items-center space-x-2">
                       <button

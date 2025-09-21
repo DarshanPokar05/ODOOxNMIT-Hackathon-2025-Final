@@ -276,14 +276,28 @@ const Dashboard: React.FC = () => {
                   <div className="text-sm text-gray-600">{order.product}</div>
                   <div className="text-sm text-gray-600">{order.quantity}</div>
                   <div>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      order.status === 'done' ? 'bg-green-100 text-green-800' :
-                      order.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-blue-100 text-blue-800'
-                    }`}>
-                      {order.status === 'in_progress' ? 'In Progress' : 
-                       order.status === 'done' ? 'Completed' : 'Planned'}
-                    </span>
+                    <select 
+                      value={order.status}
+                      onChange={async (e) => {
+                        try {
+                          await manufacturingOrdersAPI.updateStatus(order._id, e.target.value);
+                          loadDashboardData();
+                        } catch (error) {
+                          console.error('Error updating status:', error);
+                        }
+                      }}
+                      className={`px-2 py-1 rounded text-xs font-medium border-0 ${
+                        order.status === 'done' ? 'bg-green-100 text-green-800' :
+                        order.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                        order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                        'bg-blue-100 text-blue-800'
+                      }`}
+                    >
+                      <option value="planned">Planned</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="done">Completed</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
                   </div>
                   <div className="text-sm text-gray-600">{order.progress || 0}%</div>
                   <div className="text-sm text-gray-600">{order.deadline ? new Date(order.deadline).toLocaleDateString() : '-'}</div>
@@ -549,6 +563,4 @@ const Dashboard: React.FC = () => {
   );
 };
 
-
 export default Dashboard;
-

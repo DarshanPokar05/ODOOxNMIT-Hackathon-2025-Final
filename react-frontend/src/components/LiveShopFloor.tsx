@@ -22,12 +22,17 @@ interface WorkCenter {
   isRunning: boolean;
 }
 
-const LiveShopFloor: React.FC = () => {
+interface LiveShopFloorProps {
+  refreshTrigger?: number;
+}
+
+const LiveShopFloor: React.FC<LiveShopFloorProps> = ({ refreshTrigger }) => {
   const [workCenters, setWorkCenters] = useState<WorkCenter[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'lost'>('connected');
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [selectedCenter, setSelectedCenter] = useState<WorkCenter | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [generatingQR, setGeneratingQR] = useState<string | null>(null);
 
   useEffect(() => {
     loadWorkCenters();
@@ -55,6 +60,14 @@ const LiveShopFloor: React.FC = () => {
       clearInterval(interval);
     };
   }, []);
+
+  // Refresh when coming from QR Scanner
+  useEffect(() => {
+    if (refreshTrigger) {
+      loadWorkCenters();
+      setLastRefresh(new Date());
+    }
+  }, [refreshTrigger]);
 
   const loadWorkCenters = async () => {
     try {
@@ -110,42 +123,46 @@ const LiveShopFloor: React.FC = () => {
   };
 
   const handleGenerateQR = async (centerId: string) => {
+    const center = workCenters.find(c => c._id === centerId);
+    if (!center) return;
+
+    setGeneratingQR(centerId);
     try {
-      const response = await fetch(`http://localhost:5000/api/qr-codes/work-center/${centerId}`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      // Create QR data with work center information
+      const qrData = JSON.stringify({
+        id: center._id,
+        workCenter: center.name,
+        code: center.code,
+        location: center.location,
+        status: center.status,
+        qrCode: center.qrCode,
+        timestamp: new Date().toISOString(),
+        url: `${window.location.origin}/work-center/${center._id}`
       });
-      const data = await response.json();
+
+      // Generate QR code using QR Server API
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&format=png&data=${encodeURIComponent(qrData)}`;
       
+      // Fetch the image as blob to ensure proper download
+      const response = await fetch(qrUrl);
+      const blob = await response.blob();
+      
+      // Create download link
+      const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = data.qrCodeUrl;
-      link.download = `qr-${centerId}.png`;
+      link.href = url;
+      link.download = `QR-${center.code}-${new Date().toISOString().split('T')[0]}.png`;
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      alert(`QR code downloaded for ${center.name}!`);
     } catch (error) {
       console.error('Error generating QR code:', error);
-      // Fallback: Generate QR code using online service
-      const center = workCenters.find(c => c._id === centerId);
-      if (center) {
-        const qrData = JSON.stringify({
-          workCenter: center.name,
-          code: center.code,
-          location: center.location,
-          status: center.status,
-          timestamp: new Date().toISOString()
-        });
-        
-        // Generate QR code using QR Server API
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData)}`;
-        
-        // Download the QR code image
-        const link = document.createElement('a');
-        link.href = qrUrl;
-        link.download = `qr-${center.code}.png`;
-        link.target = '_blank';
-        link.click();
-        
-        alert(`QR code generated for ${center.name}!`);
-      }
+      alert('Failed to generate QR code. Please try again.');
+    } finally {
+      setGeneratingQR(null);
     }
   };
 
@@ -233,10 +250,13 @@ const LiveShopFloor: React.FC = () => {
               <div className="border-t border-gray-100 pt-4 space-y-2">
                 <button 
                   onClick={() => handleGenerateQR(center._id)}
-                  className="w-full flex items-center justify-center py-2 text-teal-600 hover:text-teal-800 hover:bg-teal-50 rounded-lg transition-colors"
+                  disabled={generatingQR === center._id}
+                  className="w-full flex items-center justify-center py-2 text-teal-600 hover:text-teal-800 hover:bg-teal-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <QrCodeIcon className="w-4 h-4 mr-2" />
-                  <span className="text-sm">Generate QR</span>
+                  <span className="text-sm">
+                    {generatingQR === center._id ? 'Generating...' : 'Download QR'}
+                  </span>
                 </button>
                 <button 
                   onClick={() => { setSelectedCenter(center); setShowDetailsModal(true); }}
@@ -283,14 +303,18 @@ const LiveShopFloor: React.FC = () => {
           </button>
           
           <button 
-            onClick={() => {
-              workCenters.forEach(center => handleGenerateQR(center._id));
-              setTimeout(() => alert('QR codes generated for all work centers!'), 500);
+            onClick={async () => {
+              for (const center of workCenters) {
+                await handleGenerateQR(center._id);
+                // Small delay between downloads to avoid overwhelming the browser
+                await new Promise(resolve => setTimeout(resolve, 500));
+              }
+              alert('All QR codes downloaded successfully!');
             }}
             className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
             <QrCodeIcon className="w-4 h-4" />
-            <span>Generate All QR Codes</span>
+            <span>Download All QR Codes</span>
           </button>
           
           <button 
@@ -426,9 +450,10 @@ const LiveShopFloor: React.FC = () => {
                     handleGenerateQR(selectedCenter._id);
                     setShowDetailsModal(false);
                   }}
-                  className="px-4 py-2 bg-teal-500 text-white rounded-lg text-sm hover:bg-teal-600"
+                  disabled={generatingQR === selectedCenter._id}
+                  className="px-4 py-2 bg-teal-500 text-white rounded-lg text-sm hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Generate QR
+                  {generatingQR === selectedCenter._id ? 'Generating...' : 'Download QR'}
                 </button>
               </div>
               <button 

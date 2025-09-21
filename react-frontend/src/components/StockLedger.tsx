@@ -134,6 +134,10 @@ const StockLedger: React.FC = () => {
       await stockLedgerAPI.createEntry({ productId, type, quantity, reason });
       loadProducts();
       loadKPIs();
+      // Force reload products to show updated stock quantities
+      setTimeout(() => {
+        loadProducts();
+      }, 500);
       alert('Stock movement recorded successfully!');
     } catch (error) {
       console.error('Error creating stock movement:', error);
@@ -190,7 +194,7 @@ const StockLedger: React.FC = () => {
         />
         <KPICard
           title="Stock Value"
-          value={`$${kpis.stockValue.toFixed(2)}`}
+          value={`₹${kpis.stockValue.toFixed(2)}`}
           icon={CurrencyDollarIcon}
           color="bg-green-500"
         />
@@ -304,11 +308,11 @@ const StockLedger: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm text-gray-900">${product.costPrice?.toFixed(2) || '0.00'}</span>
+                    <span className="text-sm text-gray-900">₹{product.costPrice?.toFixed(2) || '0.00'}</span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="text-sm font-medium text-gray-900">
-                      ${((product.stockQuantity || 0) * (product.costPrice || 0)).toFixed(2)}
+                      ₹{((product.stockQuantity || 0) * (product.costPrice || 0)).toFixed(2)}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -365,8 +369,8 @@ const StockLedger: React.FC = () => {
               <div><strong>Unit:</strong> {selectedProduct.unit}</div>
               <div><strong>Stock:</strong> {selectedProduct.stockQuantity}</div>
               <div><strong>Min Stock:</strong> {selectedProduct.minStockLevel}</div>
-              <div><strong>Cost Price:</strong> ${selectedProduct.costPrice}</div>
-              <div><strong>Total Value:</strong> ${(selectedProduct.stockQuantity * selectedProduct.costPrice).toFixed(2)}</div>
+              <div><strong>Cost Price:</strong> ₹{selectedProduct.costPrice}</div>
+              <div><strong>Total Value:</strong> ₹{(selectedProduct.stockQuantity * selectedProduct.costPrice).toFixed(2)}</div>
             </div>
           </div>
         </div>

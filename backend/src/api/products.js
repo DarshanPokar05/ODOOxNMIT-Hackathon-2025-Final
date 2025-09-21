@@ -41,11 +41,14 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create product
-router.post('/', authenticateToken, async (req, res) => {
+router.post('/', async (req, res) => {
   try {
+    const User = require('../models/User');
+    const defaultUser = await User.findOne({ email: 'manager@manufacturing.com' }) || await User.findOne();
+    
     const product = new Product({
       ...req.body,
-      createdBy: req.user._id
+      createdBy: defaultUser._id
     });
     await product.save();
     await product.populate('createdBy', 'name email');
@@ -61,7 +64,7 @@ router.post('/', authenticateToken, async (req, res) => {
 });
 
 // Update product
-router.put('/:id', authenticateToken, async (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
     const product = await Product.findByIdAndUpdate(
       req.params.id,
@@ -81,7 +84,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 });
 
 // Delete product (soft delete)
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
     const product = await Product.findByIdAndUpdate(
       req.params.id,

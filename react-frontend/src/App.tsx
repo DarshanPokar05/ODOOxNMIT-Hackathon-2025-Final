@@ -9,6 +9,7 @@ import WorkCenters from './components/WorkCenters';
 import StockLedger from './components/StockLedger';
 import BillsOfMaterial from './components/BillsOfMaterial';
 import ProductMaster from './components/ProductMaster';
+import QRScanner from './components/QRScanner';
 import MyProfile from './components/MyProfile';
 import ProfileReports from './components/ProfileReports';
 
@@ -17,6 +18,7 @@ function App() {
   const [currentPage, setCurrentPage] = useState(() => {
     return localStorage.getItem('currentPage') || 'dashboard';
   });
+  const [liveShopFloorRefresh, setLiveShopFloorRefresh] = useState(0);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -30,9 +32,14 @@ function App() {
     }
   }, []);
 
-  const handlePageChange = (page: string) => {
+  const handlePageChange = (page: string, fromQRScanner?: boolean) => {
     setCurrentPage(page);
     localStorage.setItem('currentPage', page);
+    
+    // Trigger refresh if navigating to live-shop-floor from QR scanner
+    if (page === 'live-shop-floor' && fromQRScanner) {
+      setLiveShopFloorRefresh(prev => prev + 1);
+    }
   };
 
   const handleLogin = (token: string) => {
@@ -53,7 +60,7 @@ function App() {
       case 'work-orders':
         return <WorkOrders />;
       case 'live-shop-floor':
-        return <LiveShopFloor />;
+        return <LiveShopFloor refreshTrigger={liveShopFloorRefresh} />;
       case 'work-centers':
         return <WorkCenters />;
       case 'stock-ledger':
@@ -62,6 +69,8 @@ function App() {
         return <BillsOfMaterial />;
       case 'product-master':
         return <ProductMaster />;
+      case 'qr-scanner':
+        return <QRScanner onNavigate={(page) => handlePageChange(page, true)} />;
       case 'my-profile':
         return <MyProfile />;
       case 'profile-reports':

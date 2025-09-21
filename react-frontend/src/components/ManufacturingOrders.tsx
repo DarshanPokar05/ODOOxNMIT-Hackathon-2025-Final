@@ -42,6 +42,23 @@ const ManufacturingOrders: React.FC = () => {
     deadline: ''
   });
 
+  // Product to BOM mapping
+  const productBOMMapping = {
+    'Office Chair': 'BOM-001',
+    'Desk': 'BOM-002', 
+    'Table': 'BOM-003',
+    'Cabinet': 'BOM-004'
+  };
+
+  const handleProductChange = (selectedProduct: string) => {
+    const correspondingBOM = productBOMMapping[selectedProduct as keyof typeof productBOMMapping] || '';
+    setFormData({
+      ...formData,
+      product: selectedProduct,
+      billOfMaterials: correspondingBOM
+    });
+  };
+
   useEffect(() => {
     loadOrders();
     
@@ -53,6 +70,27 @@ const ManufacturingOrders: React.FC = () => {
       socket.disconnect();
     };
   }, []);
+
+  // Generate next order number
+  const generateOrderNumber = () => {
+    const currentYear = new Date().getFullYear();
+    const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+    const existingOrders = orders.filter(order => 
+      order.orderNumber.startsWith(`MO-${currentYear}-${currentMonth}`)
+    );
+    const nextSequence = String(existingOrders.length + 1).padStart(3, '0');
+    return `MO-${currentYear}-${currentMonth}-${nextSequence}`;
+  };
+
+  // Get today's date in YYYY-MM-DD format
+  const getTodayDate = () => {
+    return new Date().toISOString().split('T')[0];
+  };
+
+  // Auto-generate order number when modal opens
+  const handleOpenCreateModal = () => {
+    setShowCreateModal(true);
+  };
 
   const loadOrders = async () => {
     try {
@@ -94,14 +132,18 @@ const ManufacturingOrders: React.FC = () => {
     
     try {
       // Validate required fields
-      if (!formData.orderNumber || !formData.product || !formData.quantity) {
+      if (!formData.product || !formData.quantity) {
         alert('Please fill in all required fields');
         setLoading(false);
         return;
       }
 
+      // Generate order number automatically
+      const orderNumber = generateOrderNumber();
+
       await manufacturingOrdersAPI.create({
         ...formData,
+        orderNumber,
         quantity: parseInt(formData.quantity)
       });
       
@@ -120,9 +162,10 @@ const ManufacturingOrders: React.FC = () => {
     } catch (error) {
       console.error('Error creating order:', error);
       // For demo purposes, simulate successful creation
+      const orderNumber = generateOrderNumber();
       const newOrder: ManufacturingOrder = {
         _id: Date.now().toString(),
-        orderNumber: formData.orderNumber,
+        orderNumber,
         product: formData.product,
         billOfMaterials: formData.billOfMaterials,
         quantity: parseInt(formData.quantity),
@@ -206,7 +249,7 @@ const ManufacturingOrders: React.FC = () => {
           </select>
         </div>
         <button
-          onClick={() => setShowCreateModal(true)}
+          onClick={handleOpenCreateModal}
           className="flex items-center space-x-2 px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors"
         >
           <PlusIcon className="w-4 h-4" />
@@ -255,9 +298,23 @@ const ManufacturingOrders: React.FC = () => {
                     </span>
                   </div>
                   <div>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(order.status)}`}>
-                      {order.status.replace('_', ' ').charAt(0).toUpperCase() + order.status.replace('_', ' ').slice(1)}
-                    </span>
+                    <select 
+                      value={order.status}
+                      onChange={async (e) => {
+                        try {
+                          await manufacturingOrdersAPI.updateStatus(order._id, e.target.value);
+                          loadOrders();
+                        } catch (error) {
+                          console.error('Error updating status:', error);
+                        }
+                      }}
+                      className={`px-2 py-1 rounded text-xs font-medium border-0 ${getStatusBadge(order.status)}`}
+                    >
+                      <option value="planned">Planned</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="done">Completed</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
                   </div>
                   <div className="text-sm text-gray-600">{order.progress}%</div>
                   <div className="text-sm text-gray-600">
@@ -295,21 +352,10 @@ const ManufacturingOrders: React.FC = () => {
 
             <form onSubmit={handleCreateOrder} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Order Number</label>
-                <input
-                  type="text"
-                  value={formData.orderNumber}
-                  onChange={(e) => setFormData({...formData, orderNumber: e.target.value})}
-                  placeholder="MO-2024-001"
-                  className="w-full px-3 py-2 border border-teal-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                />
-              </div>
-
-              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Product</label>
                 <select
                   value={formData.product}
-                  onChange={(e) => setFormData({...formData, product: e.target.value})}
+                  onChange={(e) => handleProductChange(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                   required
                 >
@@ -326,13 +372,20 @@ const ManufacturingOrders: React.FC = () => {
                 <select
                   value={formData.billOfMaterials}
                   onChange={(e) => setFormData({...formData, billOfMaterials: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-gray-50"
+                  disabled={!formData.product}
                 >
                   <option value="">Select BOM</option>
                   <option value="BOM-001">BOM-001 - Chair Assembly</option>
                   <option value="BOM-002">BOM-002 - Desk Assembly</option>
                   <option value="BOM-003">BOM-003 - Table Assembly</option>
+                  <option value="BOM-004">BOM-004 - Cabinet Assembly</option>
                 </select>
+                {formData.product && formData.billOfMaterials && (
+                  <p className="text-xs text-green-600 mt-1">
+                    ✓ Auto-selected BOM for {formData.product}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -368,6 +421,7 @@ const ManufacturingOrders: React.FC = () => {
                     type="date"
                     value={formData.startDate}
                     onChange={(e) => setFormData({...formData, startDate: e.target.value})}
+                    min={getTodayDate()}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                   />
                 </div>
@@ -377,6 +431,7 @@ const ManufacturingOrders: React.FC = () => {
                     type="date"
                     value={formData.deadline}
                     onChange={(e) => setFormData({...formData, deadline: e.target.value})}
+                    min={formData.startDate || getTodayDate()}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                   />
                 </div>

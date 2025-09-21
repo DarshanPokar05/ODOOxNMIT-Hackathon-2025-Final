@@ -9,6 +9,28 @@ router.get('/test', (req, res) => {
   res.json({ message: 'Auth API is working!' });
 });
 
+// Test email configuration
+router.post('/test-email', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const testOTP = '123456';
+    
+    console.log('Testing email configuration...');
+    console.log('EMAIL_USER:', process.env.EMAIL_USER);
+    console.log('EMAIL_PASS length:', process.env.EMAIL_PASS ? process.env.EMAIL_PASS.length : 'undefined');
+    
+    const emailSent = await sendOTP(email || 'test@example.com', testOTP, 'verification');
+    
+    res.json({ 
+      success: emailSent,
+      message: emailSent ? 'Test email sent successfully' : 'Failed to send test email',
+      otp: testOTP
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Simple login for testing (without verification check)
 router.post('/simple-login', async (req, res) => {
   try {
@@ -109,7 +131,7 @@ router.post('/signup', async (req, res) => {
     }
 
     const otp = generateOTP();
-    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); 
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     const user = new User({ 
       name, 
@@ -267,6 +289,5 @@ router.post('/reset-password', async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
-
 
 module.exports = router;

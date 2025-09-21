@@ -633,7 +633,7 @@ const BillsOfMaterial: React.FC = () => {
                 </div>
                 <div className="flex items-center space-x-2 text-sm text-gray-600">
                   <DocumentTextIcon className="w-4 h-4" />
-                  <span>${bom.totalCost.toFixed(2)} total cost</span>
+                  <span>₹{bom.totalCost.toFixed(2)} total cost</span>
                 </div>
               </div>
 

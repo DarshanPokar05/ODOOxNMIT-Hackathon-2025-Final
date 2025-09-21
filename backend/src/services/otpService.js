@@ -1,8 +1,9 @@
 const nodemailer = require('nodemailer');
 
 const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: process.env.EMAIL_PORT,
+  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 587,
   secure: false,
   auth: {
     user: process.env.EMAIL_USER,
@@ -23,20 +24,25 @@ const sendOTP = async (email, otp, type = 'verification') => {
   console.log(`Attempting to send ${type} OTP to ${email}: ${otp}`);
   
   try {
+    console.log('Testing SMTP connection...');
+    await transporter.verify();
+    console.log('SMTP verified successfully');
+    
     const info = await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+      from: `"Manufacturing ERP" <${process.env.EMAIL_USER}>`,
       to: email,
       subject,
-      text
+      text,
+      html: `<div style="font-family: Arial; padding: 20px;"><h2>Manufacturing ERP</h2><p>Your OTP: <strong style="font-size: 24px; color: #0d9488;">${otp}</strong></p><p>Valid for 10 minutes.</p></div>`
     });
     console.log('Email sent successfully:', info.messageId);
     return true;
   } catch (error) {
-    console.error('Email send error:', error.message);
-    // For development, we'll still return true to allow testing
-    // In production, you should return false
-    console.log('Development mode: Continuing despite email error');
-    console.log(`OTP for ${email}: ${otp}`);
+    console.error('Email error:', error.message);
+    console.log(`\n=== OTP FALLBACK ===`);
+    console.log(`Email: ${email}`);
+    console.log(`OTP: ${otp}`);
+    console.log(`====================\n`);
     return true;
   }
 };

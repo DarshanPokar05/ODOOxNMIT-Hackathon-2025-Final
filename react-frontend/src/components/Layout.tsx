@@ -54,7 +54,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigate, onLo
   const masterDataItems = [
     { id: 'product-master', label: 'Product Master', icon: ArchiveBoxIcon },
     { id: 'work-centers', label: 'Work Centers', icon: BuildingOfficeIcon },
-    { id: 'qr-codes', label: 'QR Codes', icon: DocumentTextIcon },
+    { id: 'qr-scanner', label: 'QR Scanner', icon: DocumentTextIcon },
   ];
 
   const quickAccess = [

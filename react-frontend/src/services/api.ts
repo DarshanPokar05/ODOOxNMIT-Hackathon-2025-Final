@@ -45,7 +45,9 @@ export const manufacturingOrdersAPI = {
 
 export const workCentersAPI = {
   getAll: () => api.get('/work-centers'),
+  getById: (id: string) => api.get(`/work-centers/${id}`),
   getShopFloor: () => api.get('/work-centers/shop-floor'),
+  create: (data: any) => api.post('/work-centers', data),
   updateStatus: (id: string, status: string, isRunning: boolean) => 
     api.patch(`/work-centers/${id}/status`, { status, isRunning }),
 };

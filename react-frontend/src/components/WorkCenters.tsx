@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircleIcon, WrenchScrewdriverIcon, UsersIcon, CurrencyDollarIcon, MagnifyingGlassIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { CheckCircleIcon, WrenchScrewdriverIcon, UsersIcon, CurrencyDollarIcon, MagnifyingGlassIcon, PlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { workCentersAPI } from '../services/api';
 import io from 'socket.io-client';
 
@@ -27,14 +27,23 @@ const KPICard: React.FC<KPICardProps> = ({ title, value, icon: Icon, color }) =>
 const WorkCenters: React.FC = () => {
   const [workCenters, setWorkCenters] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    code: '',
+    location: '',
+    costPerHour: '',
+    capacity: '',
+    description: ''
+  });
 
   useEffect(() => {
     loadWorkCenters();
     
     const socket = io('http://localhost:5000');
-    socket.on('work_center_created', () => {
-      loadWorkCenters();
-    });
+    socket.on('work_center_created', loadWorkCenters);
+    socket.on('work_center_updated', loadWorkCenters);
     
     return () => {
       socket.disconnect();
@@ -49,6 +58,36 @@ const WorkCenters: React.FC = () => {
       console.error('Error loading work centers:', error);
       // Use mock data when API fails
       setWorkCenters(mockWorkCenters);
+    }
+  };
+
+  const handleCreateWorkCenter = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    try {
+      await workCentersAPI.create({
+        ...formData,
+        costPerHour: parseFloat(formData.costPerHour),
+        capacity: parseInt(formData.capacity)
+      });
+      
+      setShowCreateModal(false);
+      setFormData({
+        name: '',
+        code: '',
+        location: '',
+        costPerHour: '',
+        capacity: '',
+        description: ''
+      });
+      loadWorkCenters();
+      alert('Work center created successfully!');
+    } catch (error) {
+      console.error('Error creating work center:', error);
+      alert('Error creating work center');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -135,7 +174,7 @@ const WorkCenters: React.FC = () => {
         />
         <KPICard
           title="Avg Cost/Hour"
-          value="$37"
+          value="₹37"
           icon={CurrencyDollarIcon}
           color="bg-purple-500"
         />
@@ -160,7 +199,10 @@ const WorkCenters: React.FC = () => {
             <option>Maintenance</option>
           </select>
         </div>
-        <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+        <button 
+          onClick={() => setShowCreateModal(true)}
+          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
           <PlusIcon className="w-4 h-4" />
           <span>Add Work Center</span>
         </button>
@@ -199,7 +241,7 @@ const WorkCenters: React.FC = () => {
             <div className="space-y-3 mb-4">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Cost per Hour</span>
-                <span className="font-medium">${center.costPerHour}</span>
+                <span className="font-medium">₹{center.costPerHour}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Capacity</span>
@@ -246,6 +288,97 @@ const WorkCenters: React.FC = () => {
           </div>
         ))}
       </div>
+
+      {/* Create Work Center Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">Create Work Center</h3>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="w-6 h-6" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateWorkCenter} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Code *</label>
+                <input
+                  type="text"
+                  value={formData.code}
+                  onChange={(e) => setFormData({...formData, code: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                <input
+                  type="text"
+                  value={formData.location}
+                  onChange={(e) => setFormData({...formData, location: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Cost/Hour</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.costPerHour}
+                    onChange={(e) => setFormData({...formData, costPerHour: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Capacity</label>
+                  <input
+                    type="number"
+                    value={formData.capacity}
+                    onChange={(e) => setFormData({...formData, capacity: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
+              >
+                {loading ? 'Creating...' : 'Create Work Center'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

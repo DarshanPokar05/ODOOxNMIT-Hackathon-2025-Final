@@ -12,6 +12,18 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
+router.get('/:id', authenticateToken, async (req, res) => {
+  try {
+    const workCenter = await WorkCenter.findById(req.params.id);
+    if (!workCenter) {
+      return res.status(404).json({ message: 'Work center not found' });
+    }
+    res.json(workCenter);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 router.post('/', authenticateToken, async (req, res) => {
   try {
     const workCenter = new WorkCenter(req.body);

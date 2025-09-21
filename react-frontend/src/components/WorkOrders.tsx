@@ -242,9 +242,24 @@ const WorkOrders: React.FC = () => {
                   <div className="text-sm text-gray-600">{order.operation}</div>
                   <div className="text-sm text-gray-600">{order.workCenter}</div>
                   <div>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(order.status)}`}>
-                      {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                    </span>
+                    <select 
+                      value={order.status}
+                      onChange={async (e) => {
+                        try {
+                          await workOrdersAPI.updateStatus(order._id, e.target.value);
+                          loadWorkOrders();
+                        } catch (error) {
+                          console.error('Error updating status:', error);
+                        }
+                      }}
+                      className={`px-2 py-1 rounded text-xs font-medium border-0 ${getStatusBadge(order.status)}`}
+                    >
+                      <option value="planned">Planned</option>
+                      <option value="started">Started</option>
+                      <option value="paused">Paused</option>
+                      <option value="completed">Completed</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
                   </div>
                   <div className="text-sm text-gray-600 capitalize">{order.priority}</div>
                   <div className="text-sm text-gray-600">{order.assignedTo || '-'}</div>
